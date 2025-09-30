@@ -44,7 +44,7 @@ Windows / Mac / Linux: Stockfish releases
 
 🛠️ การใช้งาน
 ตัวอย่างเริ่มต้น (start_bot.py)
-python
+```python
 Copy code
 import os
 from engine import Engine
@@ -66,11 +66,13 @@ move2 = bot.get_best_move(fen, depth=6)
 print("Bot move (depth 6):", move2)
 
 bot.close()
+```
 เรียกใช้งาน skill-level แบบ runtime
-python
+```python
 Copy code
 # เปลี่ยน skill level ขณะรัน
 bot.set_skill_level(10)  # จะ clamp สำหรับ Stockfish 0..20
+```
 💡 Notes
 Skill Level > 20 จะ clamp เป็น 20 สำหรับ Stockfish แต่ค่าที่ผู้ใช้ระบุจะเก็บไว้ใน custom_skill
 
