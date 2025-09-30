@@ -42,6 +42,7 @@ Windows / Mac / Linux: Stockfish releases
 
 วางไฟล์ .exe (หรือ binary) ในโฟลเดอร์เดียวกับโปรเจค หรือระบุ path ให้ตรงกับ engine.py
 
+
 ใช้งาน
 ```bash
 python start.py
