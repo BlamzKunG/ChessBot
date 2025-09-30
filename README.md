@@ -28,7 +28,7 @@ BlamzKunG เป็น **Chess Bot** ที่ใช้ Stockfish เป็น e
 git clone https://github.com/BlamzKunG/BlamzKunG-ChessBot.git
 cd BlamzKunG-ChessBot
 ```
-ติดตั้ง Libraries / Packages
+**ติดตั้ง Libraries / Packages**
 ```bash
 pip install berserk
 pip install python-chess
@@ -43,7 +43,7 @@ Windows / Mac / Linux: Stockfish releases
 วางไฟล์ .exe (หรือ binary) ในโฟลเดอร์เดียวกับโปรเจค หรือระบุ path ให้ตรงกับ engine.py
 
 
-ใช้งาน
+ **ใช้งาน**
 ```bash
 python start.py
 ```
