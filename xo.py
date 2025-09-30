@@ -1,6 +1,6 @@
 import berserk
 
-TOKEN = "lip_RaPiYQxRxyC61X3urYME"
+TOKEN = "Token"
 
 session = berserk.TokenSession(TOKEN)
 client = berserk.Client(session=session)
@@ -17,3 +17,4 @@ for event in client.bots.stream_incoming_events():
         game_id = event["game"]["id"]
         print(f"เกมเริ่ม: {game_id}, ทำ move e2e4")
         client.bots.make_move(game_id, "e2e4")
+
