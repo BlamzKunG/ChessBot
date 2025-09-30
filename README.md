@@ -1,7 +1,3 @@
-แน่นอนครับ นี่คือ README.md ที่ปรับปรุงใหม่ให้ดูเป็นมืออาชีพมากขึ้น เหมาะสำหรับ GitHub project ที่เป็น Lichess Bot โดยมีการจัดโครงสร้าง เพิ่มรายละเอียดที่สำคัญ และใช้ Markdown формати้งให้สวยงามน่าอ่านครับ
-
------
-
 # BlamzKunG Lichess Chess Bot ♟️
 
 [](https://www.python.org/downloads/)
