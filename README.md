@@ -63,6 +63,5 @@ BlamzKunG-ChessBot/
 BlamzKunG Chess Bot คือ Chess AI แบบ customizable ที่ปรับ skill-level, เวลา และความลึกได้เอง
 
 # License
-โปรเจคนี้ สามารถใช้งาน, คัดลอก, แก้ไข และนำไปใช้ใน portfolio ได้โดยไม่ต้องขออนุญาต
+โปรเจคนี้ สามารถใช้งาน, คัดลอก, แก้ไข ได้โดยไม่ต้องขออนุญาต
 Stockfish เป็นโปรแกรม GPL v3 license ดูรายละเอียด
-
