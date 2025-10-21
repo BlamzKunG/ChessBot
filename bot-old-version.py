@@ -1,4 +1,3 @@
-# bot.py (แก้ให้พร้อมใช้งานกับ engine.choose_move)
 import threading
 import time
 import traceback
@@ -6,14 +5,13 @@ import berserk
 import berserk.exceptions
 from config import TOKEN, POLL_INTERVAL
 from engine import Engine
-import chess  # สำหรับ validate UCI
+import chess
 
 # สร้าง session และ client
 session = berserk.TokenSession(TOKEN)
 client = berserk.Client(session=session)
 
-# สร้าง instance ของ engine ที่จะใช้ตลอดโปรแกรม
-# ปรับ mode เป็น "random" / "minimax" / "stockfish" ตามต้องการ
+# สร้าง instance ของ engine
 engine_inst = Engine(mode="minimax", random_seed=0, stockfish_path=None)
 
 
@@ -171,3 +169,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
