@@ -1,12 +1,3 @@
-#!/usr/bin/env python3
-# start_bot.py
-"""
-Starter script for your Lichess bot.
-- แสดง ASCII title + เมนูให้เลือกระดับบอท (ไม่โชว์ตัวเลข)
-- เซ็ต environment var STOCKFISH_SKILL แล้วรัน bot.py ด้วย subprocess
-- Safe: ตรวจ input, validate, friendly messages
-"""
-
 from __future__ import annotations
 import os
 import sys
@@ -145,3 +136,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
