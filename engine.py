@@ -1,18 +1,3 @@
-# engine.py
-"""
-Stockfish wrapper ที่รองรับ time-based และ depth-based search
-และสามารถอ่าน skill-level จาก environment variable:
-  - STOCKFISH_SKILL (หลัก)
-  - BOT_SKILL_LEVEL (fallback)
-  - START_BOT_SKILL (fallback)
-Priority:
-  1) skill_level argument to Engine(...)
-  2) env var (STOCKFISH_SKILL, BOT_SKILL_LEVEL, START_BOT_SKILL)
-  3) default fallback (3)
-Note: Stockfish 'Skill Level' UCI option typically supports 0..20.
-This wrapper will clamp Skill Level to 0..20 when configuring engine, but
-will preserve any larger user-given value in `custom_skill` attribute.
-"""
 from __future__ import annotations
 
 import os
@@ -25,7 +10,6 @@ from chess.engine import EngineTerminatedError, EngineError
 
 
 def _read_skill_env() -> Optional[int]:
-    """Read skill from common env vars. Return int or None."""
     for key in ("STOCKFISH_SKILL", "BOT_SKILL_LEVEL", "START_BOT_SKILL"):
         v = os.environ.get(key)
         if v is not None:
@@ -59,15 +43,6 @@ class Engine:
         default_time: Optional[float] = None,
         default_depth: Optional[int] = None,
     ) -> None:
-        """
-        :param path: path to stockfish binary (e.g. "stockfish.exe" or absolute path)
-        :param skill_level: optional int. If None, will read env var STOCKFISH_SKILL (or fallbacks).
-                            If still None, default is 3.
-        :param threads: number of threads to configure
-        :param hash_mb: hash size in MB
-        :param default_time: default thinking time in seconds (if you prefer time-based by default)
-        :param default_depth: default depth to use if not using time
-        """
         # determine effective skill: priority -> arg > env > default(3)
         env_skill = _read_skill_env()
         if skill_level is None and env_skill is None:
@@ -304,3 +279,4 @@ if __name__ == "__main__":
     mv2 = e.get_best_move(chess.STARTING_FEN, depth=6)
     print("depth-based move:", mv2, "took:", time.time() - t0)
     e.close()
+
