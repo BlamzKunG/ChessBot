@@ -1,12 +1,3 @@
-# bot.py (with auto-reconnect + robust polling)
-"""
-Entry point ของบอท (compat-friendly กับหลายเวอร์ชันของ Engine)
-Auto-reconnect behavior:
- - main event stream ถูกล้อมด้วย reconnect loop + backoff
- - handler: ใช้ stream_game_state ถ้า stream ตัดจะ fallback ไป polling
- - polling จะ retry เมื่อ network error เกิดขึ้น แทนที่จะปิด handler ทันที
-"""
-
 import threading
 import time
 import traceback
@@ -15,12 +6,11 @@ import sys
 import berserk
 import berserk.exceptions
 import requests
-import chess  # pip install python-chess
+import chess
 
 from config import TOKEN, POLL_INTERVAL
-from engine import Engine  # Engine อาจมีหลาย signature
+from engine import Engine  
 
-# globals (client จะถูกสร้าง/รี-สร้างโดย create_client())
 client = None
 
 # ------- Instantiate engine (flexible signatures) -------
@@ -341,3 +331,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
