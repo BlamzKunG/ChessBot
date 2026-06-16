@@ -47,21 +47,39 @@ create_client()
 
 # ------- Engine call wrapper (unchanged) -------
 def call_engine_for_move(game_state):
-    try:
-        if hasattr(engine_inst, "choose_move"):
-            return engine_inst.choose_move(game_state, depth=2, time_limit=0.05)
-    except TypeError:
-        pass
-    except Exception as e:
-        print(f"[engine] choose_move raised: {e}")
-        return None
+    # Extract clock info if available
+    wtime = None
+    btime = None
+    winc = None
+    binc = None
+    
+    if isinstance(game_state, dict):
+        state = game_state.get("state", game_state)
+        wtime = state.get("wtime")
+        btime = state.get("btime")
+        winc = state.get("winc")
+        binc = state.get("binc")
 
     try:
-        if hasattr(engine_inst, "get_best_move"):
+        if hasattr(engine_inst, "_choose_move_from_board"):
             board = _board_from_game_state(game_state)
-            return engine_inst.get_best_move(board.fen())
+            return engine_inst._choose_move_from_board(
+                board, 
+                wtime=wtime, 
+                btime=btime, 
+                winc=winc, 
+                binc=binc
+            )
     except Exception as e:
-        print(f"[engine] get_best_move raised: {e}")
+        print(f"[engine] dynamic move choice raised: {e}")
+        # Fallback to simple move
+        pass
+
+    try:
+        if hasattr(engine_inst, "choose_move"):
+            return engine_inst.choose_move(game_state, depth=15)
+    except Exception as e:
+        print(f"[engine] choose_move raised: {e}")
         return None
 
     return None

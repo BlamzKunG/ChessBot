@@ -41,131 +41,150 @@ class Engine:
         threads: int = 2,
         hash_mb: int = 64,
         default_time: Optional[float] = None,
-        default_depth: Optional[int] = None,
+        default_depth: Optional[int] = 15,
     ) -> None:
         # determine effective skill: priority -> arg > env > default(3)
         env_skill = _read_skill_env()
         if skill_level is None and env_skill is None:
-            effective = 3
+            effective = 20 # Default to max skill for better performance
         else:
             effective = skill_level if skill_level is not None else env_skill  # type: ignore
 
         self.path = path
-        self.custom_skill = None  # if user supplied >20 we keep original here for reference
+        self.custom_skill = None
         try:
             effective = int(effective)
         except Exception:
-            effective = 3
+            effective = 20
 
-        # keep user-specified as-is in custom_skill if out-of-range
         if effective > 20:
             self.custom_skill = effective
-            print(f"[engine] Note: requested skill {effective} > 20; will clamp to 20 for Stockfish.")
         self.skill_level = _clamp_skill_for_stockfish(effective)
         self.threads = max(1, int(threads))
         self.hash_mb = max(1, int(hash_mb))
         self.default_time = default_time
-        self.default_depth = default_depth or 8
+        self.default_depth = default_depth or 15
 
         self._engine: Optional[chess.engine.SimpleEngine] = None
+        self._last_eval: Optional[chess.engine.Score] = None
         self._start_engine()
 
     def _start_engine(self) -> None:
-        """Start stockfish process and configure options. If fails, raise exception."""
         if self._engine:
             return
         try:
-            self._engine = chess.engine.SimpleEngine.popen_uci(self.path)
+            # Try to find stockfish in path if not specified correctly
+            import shutil
+            actual_path = shutil.which(self.path) or self.path
+            self._engine = chess.engine.SimpleEngine.popen_uci(actual_path)
         except Exception as e:
             raise RuntimeError(f"Cannot start Stockfish at '{self.path}': {e}") from e
 
-        # Configure options, guarded because not all builds support all options:
         try:
-            # Skill Level might not exist; ignore errors
-            self._engine.configure({"Skill Level": int(self.skill_level)})
-        except Exception:
+            self._engine.configure({
+                "Skill Level": int(self.skill_level),
+                "Threads": int(self.threads),
+                "Hash": int(self.hash_mb),
+                "MultiPV": 3 # For complexity analysis
+            })
+        except Exception as e:
+            print(f"[engine] Configuration error: {e}")
+
+    def calculate_time(self, board: chess.Board, wtime: float, btime: float, winc: float = 0, binc: float = 0) -> float:
+        """
+        Calculate thinking time based on remaining clock and game complexity.
+        Times are in milliseconds.
+        """
+        my_time = wtime if board.turn == chess.WHITE else btime
+        my_inc = winc if board.turn == chess.WHITE else binc
+        
+        # Base time: roughly 1/40th of remaining time + increment
+        # As time gets lower, we use a smaller fraction
+        if my_time > 60000: # More than 1 min
+            base_time = my_time / 40 + my_inc * 0.7
+        elif my_time > 10000: # 10s - 1min
+            base_time = my_time / 20 + my_inc * 0.8
+        else: # Critical time < 10s
+            base_time = my_time / 10 + my_inc * 0.9
+
+        # Adjust for Complexity
+        multiplier = 1.0
+        
+        # 1. Material Balance (Endgame check)
+        # If total material is low, we might need deeper search (more time)
+        material_count = sum(len(board.pieces(p, c)) for p in chess.PIECE_TYPES for c in chess.COLORS)
+        if material_count < 10:
+            multiplier *= 1.5
+            
+        # 2. Score Change & Multi-PV Analysis
+        # We perform a quick search to get current evaluation and Multi-PV info
+        try:
+            info = self._engine.analyse(board, chess.engine.Limit(time=0.1), multipv=3)
+            if info:
+                current_eval = info[0]["score"].relative
+                
+                # Check Score Change
+                if self._last_eval is not None:
+                    try:
+                        diff = current_eval.score() - self._last_eval.score()
+                        if abs(diff) > 100: # Score change > 1 pawn
+                            multiplier *= 1.3
+                    except: pass
+                
+                self._last_eval = current_eval
+                
+                # Check Move Candidates (Multi-PV)
+                # If top 2 moves are very close in score, spend more time deciding
+                if len(info) >= 2:
+                    try:
+                        s1 = info[0]["score"].relative.score()
+                        s2 = info[1]["score"].relative.score()
+                        if abs(s1 - s2) < 20: # Difference < 0.2 pawn
+                            multiplier *= 1.2
+                    except: pass
+        except:
             pass
-        try:
-            self._engine.configure({"Threads": int(self.threads)})
-        except Exception:
-            pass
-        try:
-            self._engine.configure({"Hash": int(self.hash_mb)})
-        except Exception:
-            pass
 
-        print(f"[engine] Started Stockfish ({self.path}) skill={self.skill_level}"
-              + (f" (custom requested {self.custom_skill})" if self.custom_skill else "")
-              + f", threads={self.threads}, hash={self.hash_mb}MB")
+        final_time = (base_time * multiplier) / 1000.0 # Convert to seconds
+        
+        # Bounds from config (ideally)
+        # Hardcoded defaults here if config not imported directly in this file
+        return max(0.1, min(final_time, 10.0))
 
-    # -------------------------
-    # Public API (unchanged)
-    # -------------------------
-    def choose_move(
-        self,
-        game_state: Any,
-        *,
-        time_limit: Optional[float] = None,
-        depth: Optional[int] = None,
-    ) -> Optional[str]:
-        board = self._board_from_game_state(game_state)
-        return self._choose_move_from_board(board, time_limit=time_limit, depth=depth)
-
-    def get_best_move(
-        self,
-        fen: str,
-        *,
-        time_limit: Optional[float] = None,
-        depth: Optional[int] = None,
-    ) -> Optional[str]:
-        try:
-            board = chess.Board(fen=fen)
-        except Exception:
-            return None
-        return self._choose_move_from_board(board, time_limit=time_limit, depth=depth)
-
-    # -------------------------
-    # Core play
-    # -------------------------
     def _choose_move_from_board(
         self,
         board: chess.Board,
         *,
         time_limit: Optional[float] = None,
         depth: Optional[int] = None,
+        wtime: Optional[float] = None,
+        btime: Optional[float] = None,
+        winc: Optional[float] = None,
+        binc: Optional[float] = None,
     ) -> Optional[str]:
         if board.is_game_over():
             return None
 
-        use_time = False
-        if time_limit is not None:
-            use_time = True
-        elif depth is None and self.default_time is not None:
-            use_time = True
-            time_limit = self.default_time
-        elif depth is None:
-            depth = self.default_depth
-
-        if use_time and (time_limit is None or time_limit <= 0):
-            use_time = False
-            depth = depth or self.default_depth
+        if wtime is not None and btime is not None:
+            # Dynamic time management
+            calc_time = self.calculate_time(board, wtime, btime, winc or 0, binc or 0)
+            limit = chess.engine.Limit(time=calc_time)
+        elif time_limit is not None:
+            limit = chess.engine.Limit(time=time_limit)
+        else:
+            limit = chess.engine.Limit(depth=depth or self.default_depth)
 
         if self._engine is None:
-            raise RuntimeError("Stockfish engine process is not running")
+            self._start_engine()
 
         try:
-            limit = chess.engine.Limit(time=time_limit) if use_time else chess.engine.Limit(depth=depth)
             result = self._engine.play(board, limit)
             if result is None or result.move is None:
                 return None
             return result.move.uci()
-        except EngineTerminatedError:
-            self._engine = None
-            raise RuntimeError("Stockfish terminated unexpectedly")
-        except EngineError as ee:
-            raise RuntimeError(f"EngineError during play: {ee}") from ee
         except Exception as e:
-            print(f"[engine] unexpected error in play: {e}")
+            print(f"[engine] play error: {e}")
+            self._engine = None # Force restart next time
             return None
 
     # -------------------------
