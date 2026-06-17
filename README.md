@@ -1,67 +1,58 @@
-# BlamzKunG Chess Bot ♟️
+# ChessBot
 
-BlamzKunG เป็น **Chess Bot** ที่ใช้ Stockfish เป็น engine backend แต่คุณสามารถปรับ **skill level และเวลาคิด** ของบอทได้อย่างอิสระ เหมาะสำหรับเล่นเองหรือทดสอบ AI vs AI สำหรับ portfolio ของนักพัฒนาเกม/AI/Trading logic
+An advanced Lichess bot integrated with Stockfish, featuring dynamic time management, automated engine discovery, and robust error handling.
 
----
+## Core Features
 
-## 🎯 คุณสมบัติหลัก
+### 1. Dynamic Time Management
+The engine employs a sophisticated time allocation algorithm that adapts to the current game state:
+*   **Disadvantage Recovery:** Automatically increases thinking time by up to 4x when the position evaluation drops significantly, ensuring deep calculation in critical defensive moments.
+*   **Complexity Analysis:** Utilizes Multi-PV analysis to identify positions with multiple viable candidates, allocating extra time to resolve tactical ambiguity.
+*   **Panic Mode:** Shifts to ultra-fast execution (sub-100ms) when the remaining clock falls below 1.5 seconds to prevent time forfeits.
+*   **Safety Guards:** Implements a dynamic ceiling to ensure no single move consumes more than 25% of the remaining time, maintaining a healthy clock buffer.
 
-- ใช้ Stockfish (UCI) เป็น engine
-- ปรับ Skill Level ของบอทได้
-  - บอทเร็ว → skill level 1
-  - บอทปานกลาง → skill level 5
-  - บอทเก่ง → skill level 20
-  - บอทโครตเทพ → skill level 100
-  - Custom → กำหนดค่าเองได้
-- รองรับทั้ง **time-based** และ **depth-based** search
-- สามารถเลือกจำนวน Threads และขนาด Hash ได้
-- Realtime skill-level update ผ่าน environment variable (`STOCKFISH_SKILL`)
-- ใช้งานง่ายด้วย Python API
-- ทำงานบน Windows / Linux / macOS (ต้องมี Python 3.10+)
+### 2. Intelligent Engine Integration
+*   **Automated Discovery:** Supports cross-platform Stockfish binary detection (Linux/Windows/Android-Termux).
+*   **Real-time Configuration:** Dynamically adjusts Skill Level, Threads, and Hash Memory based on environment variables or configuration files.
 
----
+### 3. Operational Stability
+*   **Unified Execution:** All startup, discovery, and game logic are consolidated into a single entry point (`bot.py`).
+*   **Latency Compensation:** Configurable move overhead (default 500ms) to account for network jitter and API response times.
+*   **Resilient Streams:** Implements automatic reconnection and error handling for Lichess gameState event streams.
 
-## ⚡ การติดตั้ง
+## Installation
 
-**1. Clone โปรเจคนี้**
+### Prerequisites
+*   Python 3.8+
+*   Stockfish binary installed or placed in the project directory.
+*   Lichess Personal Access Token (PAT) with "Play as a bot" permissions.
+
+### Setup
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/BlamzKunG/ChessBot.git
+   cd ChessBot
+   ```
+2. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. Configure your credentials in `config.py` or set the `TOKEN` environment variable.
+
+## Usage
+
+Start the bot by executing the main script:
 ```bash
-git clone https://github.com/BlamzKunG/BlamzKunG-ChessBot.git
-cd BlamzKunG-ChessBot
-```
-**2.ติดตั้ง Libraries / Packages**
-```bash
-pip install berserk
-pip install python-chess
-pip install requests
-```
-ดาวน์โหลด Stockfish binary จาก GitHub:
-
-Windows / Mac / Linux: Stockfish releases
-
-เลือกไฟล์ตาม OS ของคุณ เช่น stockfish_15_x64_avx2.exe สำหรับ Windows
-
-วางไฟล์ .exe (หรือ binary) ในโฟลเดอร์เดียวกับโปรเจค หรือระบุ path ให้ตรงกับ engine.py
-
-
- **3.ใช้งาน**
-```bash
-python start.py
+python bot.py
 ```
 
-📂 โครงสร้างไฟล์
-```pgsql
-BlamzKunG-ChessBot/
-│
-├── Bot.py           # ไฟล์ main
-├── engine.py        # wrapper Stockfish engine
-├── start_bot.py     # menu เลือก skill level + ASCII art
-├── README.md        # ไฟล์นี้
-└── stockfish.exe    # ต้องดาวน์โหลดเองจาก link ด้านบน
-```
+## Configuration
 
-✅ สรุป
-BlamzKunG Chess Bot คือ Chess AI แบบ customizable ที่ปรับ skill-level, เวลา และความลึกได้เอง
+Settings can be adjusted in `config.py`:
+*   `MOVE_OVERHEAD`: Latency buffer in milliseconds.
+*   `MIN_TIME`: Minimum thinking time per move.
+*   `MAX_TIME`: Maximum thinking time per move.
+*   `DEFAULT_DEPTH`: Search depth used when time parameters are unavailable.
 
-# License
-โปรเจคนี้ สามารถใช้งาน, คัดลอก, แก้ไข ได้โดยไม่ต้องขออนุญาต
-Stockfish เป็นโปรแกรม GPL v3 license ดูรายละเอียด
+## License
+MIT License
