@@ -2,56 +2,68 @@ import threading
 import time
 import traceback
 import sys
+import os
+import shutil
 
 import berserk
 import berserk.exceptions
 import requests
 import chess
 
-from config import TOKEN, POLL_INTERVAL
+from config import TOKEN, POLL_INTERVAL, STOCKFISH_PATH
 from engine import Engine  
 
 client = None
 
-# ------- Instantiate engine (flexible signatures) -------
-def _make_engine_instance():
-    try:
-        return Engine(mode="minimax", random_seed=0, stockfish_path=None)
-    except TypeError:
-        pass
-    try:
-        return Engine(path="stockfish.exe", skill_level=10, depth=15)
-    except TypeError:
-        pass
-    try:
-        return Engine()
-    except Exception as e:
-        raise RuntimeError(f"ไม่สามารถสร้าง Engine instance ได้: {e}")
+# ------- Stockfish Auto-Discovery -------
+def check_stockfish(configured_path):
+    """Check if stockfish is available in configured path, PATH, or current folder."""
+    if configured_path and os.path.exists(configured_path):
+        return configured_path
+        
+    for name in ["stockfish", "stockfish.exe", "stockfish_15", "stockfish-windows-x86-64-avx2.exe"]:
+        if os.path.exists(name):
+            return os.path.abspath(name)
+    
+    path = shutil.which("stockfish")
+    if path:
+        return path
+    return configured_path # fallback
 
+# ------- Instantiate engine -------
+def _make_engine_instance():
+    sf_path = check_stockfish(STOCKFISH_PATH)
+    print(f"[*] Using Stockfish at: {sf_path}")
+    try:
+        # ใช้ Engine พร้อม Dynamic Time Management
+        return Engine(path=sf_path, skill_level=20)
+    except Exception as e:
+        print(f"[!] Warning: Engine start failed: {e}. Attempting simple init.")
+        try:
+            return Engine()
+        except:
+            raise RuntimeError(f"ไม่สามารถสร้าง Engine instance ได้: {e}")
 
 engine_inst = _make_engine_instance()
-
 
 # ------- client/session helper -------
 def create_client():
     """(Re)create berserk client/session and assign to global client."""
     global client
+    if not TOKEN or TOKEN == "token":
+        print("[!] Error: ไม่พบ Lichess Token ใน config.py")
+        sys.exit(1)
     session = berserk.TokenSession(TOKEN)
     client = berserk.Client(session=session)
     return client
 
-
 # create initial client
 create_client()
 
-
-# ------- Engine call wrapper (unchanged) -------
+# ------- Engine call wrapper (Simplified & Robust) -------
 def call_engine_for_move(game_state):
     # Extract clock info if available
-    wtime = None
-    btime = None
-    winc = None
-    binc = None
+    wtime, btime, winc, binc = None, None, None, None
     
     if isinstance(game_state, dict):
         state = game_state.get("state", game_state)
@@ -60,48 +72,41 @@ def call_engine_for_move(game_state):
         winc = state.get("winc")
         binc = state.get("binc")
 
+    board = _board_from_game_state(game_state)
+    
     try:
-        if hasattr(engine_inst, "_choose_move_from_board"):
-            board = _board_from_game_state(game_state)
-            return engine_inst._choose_move_from_board(
-                board, 
-                wtime=wtime, 
-                btime=btime, 
-                winc=winc, 
-                binc=binc
-            )
+        # พยายามใช้การคำนวณแบบ Dynamic ก่อน
+        move_uci = engine_inst._choose_move_from_board(
+            board, 
+            wtime=wtime, 
+            btime=btime, 
+            winc=winc, 
+            binc=binc
+        )
+        if move_uci:
+            return move_uci
     except Exception as e:
-        print(f"[engine] dynamic move choice raised: {e}")
-        # Fallback to simple move
-        pass
+        print(f"[engine] dynamic choice failed: {e}")
 
+    # Fallback: ใช้ simple move แบบเวอร์ชันเก่าที่เสถียร
     try:
-        if hasattr(engine_inst, "choose_move"):
-            return engine_inst.choose_move(game_state, depth=15)
+        return engine_inst._choose_move_from_board(board, depth=15)
     except Exception as e:
-        print(f"[engine] choose_move raised: {e}")
+        print(f"[engine] fallback failed: {e}")
         return None
-
-    return None
-
 
 # ------- helper: parse/board -------
 def _parse_moves_from_state(state):
-    if not state:
-        return ""
+    if not state: return ""
     if isinstance(state, dict):
-        if "moves" in state:
-            return state.get("moves", "") or ""
+        if "moves" in state: return state.get("moves", "") or ""
         if "state" in state and isinstance(state["state"], dict):
             return state["state"].get("moves", "") or ""
         if state.get("type") == "gameFull" and isinstance(state.get("state"), dict):
             return state["state"].get("moves", "") or ""
-        if state.get("type") == "gameState" and isinstance(state.get("state"), dict):
-            return state["state"].get("moves", "") or ""
-        return ""
-    if isinstance(state, str):
-        return state
-    return ""
+        if state.get("type") == "gameState": # Lichess stream state
+            return state.get("moves", "") or ""
+    return str(state) if isinstance(state, str) else ""
 
 
 def _board_from_game_state(game_state):
